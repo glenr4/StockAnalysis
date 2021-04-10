@@ -9,70 +9,147 @@ import plotly.graph_objects as go
 # Data
 start = dt.datetime(2019,1,1)
 end=dt.datetime.now()
+stockSymbol = 'BTC-USD'
+# stockSymbol = 'ETH-USD'
 
-stocks = web.DataReader(['FB','AMZN', 'AAPL', 'NFLX', 'GOOGL', 'MSFT'], 'yahoo', start, end)
-stocks_close = pd.DataFrame(web.DataReader(['FB','AMZN', 'AAPL', 'NFLX', 'GOOGL', 'MSFT'], 'yahoo', start, end)['Close'])
+stocks = web.DataReader([stockSymbol], 'yahoo', start, end)
 
-# stocks.to_csv('c:/temp/stocks.csv')
-stock = 'AAPL'
-
-set1 = {'x': stocks.index,
-'open': stocks[('Open',    stock)],
-'high': stocks[('High',    stock)],
-'low': stocks[('Low',    stock)],
-'close': stocks[('Close',    stock)],
+# Get the data for the stockSymbol and configure as hollow candlestick
+stockData = {'x': stocks.index,
+'open': stocks[('Open', stockSymbol)],
+'high': stocks[('High', stockSymbol)],
+'low': stocks[('Low', stockSymbol)],
+'close': stocks[('Close', stockSymbol)],
 'type': 'candlestick',
 'increasing':{'fillcolor': '#FFFFFF'},
 'decreasing':{'fillcolor': '#FF0000'}
+             }
+
+avg10 = stocks.Close[stockSymbol].rolling(window=10,min_periods=1).mean()
+avg50 = stocks.Close[stockSymbol].rolling(window=50, min_periods=1).mean()
+avg200 = stocks.Close[stockSymbol].rolling(window=200, min_periods=1).mean()
+diff = avg50 - avg200
+
+
+# maDifference = {
+#     'x': stocks.index,
+#     'y': avg20,
+#     'type': 'scatter',
+#     'mode': 'lines',
+#     'line': {
+#         'width': 1,
+#         'color': 'blue'
+#     },
+#     'name': 'Moving Average 20'
+# }
+
+maDifference = {
+    'x': stocks.index,
+    'y': diff,
+    'type': 'bar',
+    'marker':{'color':'green'},
+    'name': 'Moving Average Difference'
 }
 
-avg20 = stocks.Close[stock].rolling(window=20,min_periods=1).mean()
-avg50 = stocks.Close[stock].rolling(window=50,min_periods=1).mean()
-avg200 = stocks.Close[stock].rolling(window=200,min_periods=1).mean()
-
-set2 = {
+maShort = {
     'x': stocks.index,
-    'y': avg20,
+    'y': avg10,
     'type': 'scatter',
     'mode': 'lines',
     'line': {
-        'width': 1,
-        'color': 'blue'
+        'width': 2,
+        'color': 'purple'
     },
-    'name': 'Moving Average 20'
+    'name': 'Moving Average 10'
 }
 
-set3 = {
+maMedium = {
     'x': stocks.index,
     'y': avg50,
     'type': 'scatter',
     'mode': 'lines',
     'line': {
-        'width': 1,
-        'color': 'yellow'
+        'width': 2,
+        'color': 'red'
     },
     'name': 'Moving Average 50'
 }
 
-set4 = {
+maLong = {
     'x': stocks.index,
     'y': avg200,
     'type': 'scatter',
     'mode': 'lines',
     'line': {
-        'width': 1,
-        'color': 'black'
+        'width': 2,
+        'color': 'blue'
     },
     'name': 'Moving Average 200'
 }
 
-fig = go.Figure(data=[set1, set2, set3, set4],
+# Chart
+fig = go.Figure(data=[stockData, maDifference, maShort, maMedium, maLong],
                 layout=go.Layout({
     'title':{
-        'text': stock,
+        'text': stockSymbol,
         'font':{
             'size': 25
         }
+    },
+    "yaxis": {
+        "autorange": True,
+        "fixedrange": False,
+
     }
 }))
 fig.show()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
