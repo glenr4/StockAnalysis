@@ -18,6 +18,7 @@ maShortPeriod = 10
 maMediumPeriod = 50
 maLongPeriod = 200
 timePeriod = 'daily' # daily, weekly or monthly
+exportData = True
 
 # Get data
 stocks = web.DataReader(stockSymbol, 'yahoo', start, end)
@@ -32,6 +33,8 @@ stocks['maMedium'] = stocks['Close'].rolling(window=maMediumPeriod, min_periods=
 stocks['maLong'] = stocks['Close'].rolling(window=maLongPeriod, min_periods=1).mean()
 stocks['maDiffMediumLong'] = stocks['maMedium'] - stocks['maLong']
 stocks['maDiffMediumLongChange'] = stocks['maDiffMediumLong'].diff()    # Difference from one row to the next
+stocks['maDiffShortMedium'] = stocks['maShort'] - stocks['maMedium']
+stocks['maDiffShortMediumChange'] = stocks['maDiffShortMedium'].diff()    # Difference from one row to the next
 # display(stocks)
 
 # Calculate trade entry and exit points
@@ -118,6 +121,14 @@ maDiffMediumLongChange = {
     'name': 'Medium-Long Difference Change'
 }
 
+maDiffShortMediumChange= {
+    'x': stocks.index,
+    'y': stocks['maDiffShortMediumChange'],
+    'type': 'bar',
+    'marker':{'color':'rgba(0, 127, 255, 0.3)'},
+    'name': 'Short-Medium Difference Change'
+}
+
 maShort = {
     'x': stocks.index,
     'y': stocks['maShort'],
@@ -192,6 +203,7 @@ fig.add_trace(maMedium, secondary_y=True)
 fig.add_trace(maLong, secondary_y=True)
 
 # Second subplot
+fig.add_trace(maDiffShortMediumChange, secondary_y=False)
 fig.add_trace(maDiffMediumLongChange, secondary_y=False)
 fig.add_trace(entryData, secondary_y=False)
 fig.add_trace(exitData, secondary_y=False)
@@ -212,7 +224,9 @@ fig.update_yaxes(title_text="EMA Difference Change", secondary_y=False)
 fig.update_layout(hovermode='x')
 fig.show()
 
-
+# Write to excel
+if(exportData):
+    stocks.to_csv("export/{}_{}_short{}_med{}_long{}.csv".format(stockSymbol, timePeriod, maShortPeriod, maMediumPeriod, maLongPeriod))
 
 
 
