@@ -12,6 +12,7 @@ stockSymbol = 'BTC-USD'
 # stockSymbol = 'ETH-USD'
 
 stocks = web.DataReader([stockSymbol], 'yahoo', start, end)
+# display(stocks)
 
 # Get the data for the stockSymbol and configure as hollow candlestick
 stockData = {'x': stocks.index,
@@ -24,66 +25,98 @@ stockData = {'x': stocks.index,
     'decreasing':{'fillcolor': '#FF0000'}
  }
 
-# Moving averaged
-avg10 = stocks.Close[stockSymbol].rolling(window=10,min_periods=1).mean()
-avg50 = stocks.Close[stockSymbol].rolling(window=50, min_periods=1).mean()
-avg200 = stocks.Close[stockSymbol].rolling(window=200, min_periods=1).mean()
-maDiff = avg50 - avg200
-maDiffChange = maDiff.diff()    # Difference from one row to the next
+# Moving averages
+stocks['maShort', stockSymbol] = stocks.Close[stockSymbol].rolling(window=10,min_periods=1).mean()
+stocks['maMedium', stockSymbol] = stocks.Close[stockSymbol].rolling(window=50, min_periods=1).mean()
+stocks['maLong', stockSymbol] = stocks.Close[stockSymbol].rolling(window=200, min_periods=1).mean()
+stocks['maDiffMediumLong', stockSymbol] = stocks['maMedium', stockSymbol] - stocks['maLong', stockSymbol]
+stocks['maDiffMediumLongChange', stockSymbol] = stocks['maDiffMediumLong', stockSymbol].diff()    # Difference from one row to the next
+# display(stocks)
 
 # Plot dictionaries
-maDifference = {
+maDiffMediumLongChange = {
     'x': stocks.index,
-    'y': maDiffChange,
+    'y': stocks['maDiffMediumLongChange', stockSymbol],
     'type': 'bar',
     'marker':{'color':'rgba(0, 127, 14, 0.3)'},
-    'name': 'Moving Average Difference'
+    'name': 'Medium-Long Difference Change'
 }
 
 maShort = {
     'x': stocks.index,
-    'y': avg10,
+    'y': stocks['maShort', stockSymbol],
     'type': 'scatter',
     'mode': 'lines',
     'line': {
         'width': 2,
         'color': 'purple'
     },
-    'name': 'Moving Average 10'
+    'name': 'Short Moving Average'
 }
 
 maMedium = {
     'x': stocks.index,
-    'y': avg50,
+    'y': stocks['maMedium', stockSymbol],
     'type': 'scatter',
     'mode': 'lines',
     'line': {
         'width': 2,
         'color': 'red'
     },
-    'name': 'Moving Average 50'
+    'name': 'Medium Moving Average'
 }
 
 maLong = {
     'x': stocks.index,
-    'y': avg200,
+    'y': stocks['maLong', stockSymbol],
     'type': 'scatter',
     'mode': 'lines',
     'line': {
         'width': 2,
         'color': 'blue'
     },
-    'name': 'Moving Average 200'
+    'name': 'Long Moving Average'
+}
+
+# Calculate trade entry and exit points
+stocks['entry', stockSymbol] = ((stocks['maShort', stockSymbol] > stocks['maMedium', stockSymbol]) \
+                              & (stocks['maShort', stockSymbol] > stocks['maLong', stockSymbol]) \
+                              & (stocks['maDiffMediumLongChange', stockSymbol] > 0)).astype(int)
+
+stocks['exit', stockSymbol] = (stocks['Close', stockSymbol] < stocks['maShort', stockSymbol]).astype(int)*-1
+# display(stocks)
+
+entryData={
+    'x': stocks.index,
+    'y': stocks['entry', stockSymbol],
+    'type': 'bar',
+    'marker':{'color':'black'},
+    'name': 'Entry'
+}
+
+exitData={
+    'x': stocks.index,
+    'y': stocks['exit', stockSymbol],
+    'type': 'bar',
+    'marker':{'color':'red'},
+    'name': 'Entry'
 }
 
 # Chart with separate y-axes (secondary goes on top of primary)
 fig = make_subplots(specs=[[{"secondary_y": True}]])
+
+# First subplot
 fig.add_trace(stockData, secondary_y=True)
 fig.add_trace(maShort, secondary_y=True)
 fig.add_trace(maMedium, secondary_y=True)
 fig.add_trace(maLong, secondary_y=True)
 
-fig.add_trace(maDifference, secondary_y=False)
+# Second subplot
+fig.add_trace(maDiffMediumLongChange, secondary_y=False)
+fig.add_trace(entryData, secondary_y=False)
+fig.add_trace(exitData, secondary_y=False)
+
+# Layout and configuration
 fig.update_layout({
     'title':{
         'text': stockSymbol,
