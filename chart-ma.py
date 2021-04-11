@@ -7,8 +7,14 @@ from plotly.subplots import make_subplots
 from IPython.display import display
 import pandas as pd
 
+# Settings
+startingEquity = 1000.0
+maShortPeriod = 10
+maMediumPeriod = 50
+maLongPeriod = 200
+
 # Data
-start = dt.datetime(2020,2,20)
+start = dt.datetime(2018,1,1)
 end=dt.datetime.now()
 stockSymbol = 'BTC-USD'
 # stockSymbol = 'ETH-USD'
@@ -16,9 +22,78 @@ stockSymbol = 'BTC-USD'
 stocks = web.DataReader([stockSymbol], 'yahoo', start, end)
 # display(stocks)
 
-startingEquity = 1000.0
-entryExitScaling = startingEquity
+# Moving averages
+stocks['maShort', stockSymbol] = stocks.Close[stockSymbol].rolling(window=maShortPeriod,min_periods=1).mean()
+stocks['maMedium', stockSymbol] = stocks.Close[stockSymbol].rolling(window=maMediumPeriod, min_periods=1).mean()
+stocks['maLong', stockSymbol] = stocks.Close[stockSymbol].rolling(window=maLongPeriod, min_periods=1).mean()
+stocks['maDiffMediumLong', stockSymbol] = stocks['maMedium', stockSymbol] - stocks['maLong', stockSymbol]
+stocks['maDiffMediumLongChange', stockSymbol] = stocks['maDiffMediumLong', stockSymbol].diff()    # Difference from one row to the next
+# display(stocks)
 
+# Calculate trade entry and exit points
+entryExitScaling = startingEquity
+stocks['entry', stockSymbol] = ((stocks['maShort', stockSymbol] > stocks['maMedium', stockSymbol]) \
+                              & (stocks['maShort', stockSymbol] > stocks['maLong', stockSymbol]) \
+                              & (stocks['maDiffMediumLongChange', stockSymbol] > 0)).astype(int) * entryExitScaling
+
+stocks['exit', stockSymbol] = (stocks['Close', stockSymbol] < stocks['maShort', stockSymbol]).astype(int) * -entryExitScaling
+# display(stocks)
+
+# Calculate account equity
+# We are using the Close price for all indicators, therefore when entering or closing a trade,
+# we do it on the Open of the next bar
+equity = []
+lastEquity = startingEquity
+inBullishTrade = False
+buyNextPeriod = False
+sellNextPeriod = False
+lastPurchaseQty = 0
+
+for row in stocks.iterrows():
+    data = row[1] # Note: row[0] is date time, row[1] is the row data
+    # print(data)
+
+    # if(pd.Timestamp('2020-11-26') == row[0]):
+    #     print('here')
+
+    if (inBullishTrade):
+        if(sellNextPeriod):
+            # Exit trade
+            equity.append(data['Open', stockSymbol] * lastPurchaseQty)
+            sellNextPeriod = False
+            buyNextPeriod = False
+            inBullishTrade = False
+        else:
+            equity.append(data['Close', stockSymbol] * lastPurchaseQty)
+
+            # Check for exit trigger
+            if (data['exit', stockSymbol] == -entryExitScaling):
+                sellNextPeriod = True
+                buyNextPeriod = False
+
+    else:
+        if(buyNextPeriod):
+            # Buy at Open
+            lastPurchaseQty = equity[-1] / data['Open', stockSymbol]
+            equity.append(data['Close', stockSymbol] * lastPurchaseQty) # Equity at end of day
+            inBullishTrade = True
+            buyNextPeriod = False
+        else:
+            # No change in equity
+            equity.append(lastEquity)
+
+            # Check for entry trigger
+            if((data['entry', stockSymbol] == entryExitScaling) & (data['exit', stockSymbol] == 0)):
+                buyNextPeriod = True
+                sellNextPeriod = False
+
+    # Save values for next iteration
+    lastEquity = equity[-1]
+
+stocks['equity', stockSymbol] = equity
+display(stocks)
+
+# Plot dictionaries
 # Get the data for the stockSymbol and configure as hollow candlestick
 stockData = {'x': stocks.index,
     'open': stocks[('Open', stockSymbol)],
@@ -30,15 +105,6 @@ stockData = {'x': stocks.index,
     'decreasing':{'fillcolor': '#FF0000'}
  }
 
-# Moving averages
-stocks['maShort', stockSymbol] = stocks.Close[stockSymbol].rolling(window=10,min_periods=1).mean()
-stocks['maMedium', stockSymbol] = stocks.Close[stockSymbol].rolling(window=50, min_periods=1).mean()
-stocks['maLong', stockSymbol] = stocks.Close[stockSymbol].rolling(window=200, min_periods=1).mean()
-stocks['maDiffMediumLong', stockSymbol] = stocks['maMedium', stockSymbol] - stocks['maLong', stockSymbol]
-stocks['maDiffMediumLongChange', stockSymbol] = stocks['maDiffMediumLong', stockSymbol].diff()    # Difference from one row to the next
-# display(stocks)
-
-# Plot dictionaries
 maDiffMediumLongChange = {
     'x': stocks.index,
     'y': stocks['maDiffMediumLongChange', stockSymbol],
@@ -83,14 +149,6 @@ maLong = {
     'name': 'Long Moving Average'
 }
 
-# Calculate trade entry and exit points
-stocks['entry', stockSymbol] = ((stocks['maShort', stockSymbol] > stocks['maMedium', stockSymbol]) \
-                              & (stocks['maShort', stockSymbol] > stocks['maLong', stockSymbol]) \
-                              & (stocks['maDiffMediumLongChange', stockSymbol] > 0)).astype(int) * entryExitScaling
-
-stocks['exit', stockSymbol] = (stocks['Close', stockSymbol] < stocks['maShort', stockSymbol]).astype(int) * -entryExitScaling
-# display(stocks)
-
 entryData={
     'x': stocks.index,
     'y': stocks['entry', stockSymbol],
@@ -107,59 +165,6 @@ exitData={
     'name': 'Exit'
 }
 
-# Calculate account equity
-# We are using the Close price for all indicators, therefore when entering or closing a trade,
-# we do it on the Open of the next bar
-equity = []
-lastEquity = startingEquity
-inBullishTrade = False
-buyNextPeriod = False
-sellNextPeriod = False
-lastPurchaseQty = 0
-
-for row in stocks.iterrows():
-    data = row[1] # Note: row[0] is date time, row[1] is the row data
-    print(data)
-
-    if(pd.Timestamp('2020-11-26') == row[0]):
-        print('here')
-
-    if (inBullishTrade):
-        if(sellNextPeriod):
-            # Exit trade
-            equity.append(data['Open', stockSymbol] * lastPurchaseQty)
-            sellNextPeriod = False
-            buyNextPeriod = False
-            inBullishTrade = False
-        else:
-            equity.append(data['Close', stockSymbol] * lastPurchaseQty)
-
-            # Check for exit trigger
-            if (data['exit', stockSymbol] == -entryExitScaling):
-                sellNextPeriod = True
-                buyNextPeriod = False
-
-    else:
-        if(buyNextPeriod):
-            # Buy at Open
-            lastPurchaseQty = equity[-1] / data['Open', stockSymbol]
-            equity.append(data['Close', stockSymbol] * lastPurchaseQty) # Equity at end of day
-            inBullishTrade = True
-            buyNextPeriod = False
-        else:
-            # No change in equity
-            equity.append(lastEquity)
-
-            # Check for entry trigger
-            if((data['entry', stockSymbol] == entryExitScaling) & (data['exit', stockSymbol] == 0)):
-                buyNextPeriod = True
-                sellNextPeriod = False
-
-    # Save values for next iteration
-    lastEquity = equity[-1]
-
-stocks['equity', stockSymbol] = equity
-display(stocks)
 equityData = {
     'x': stocks.index,
     'y': stocks['equity', stockSymbol],
