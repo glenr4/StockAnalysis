@@ -92,8 +92,10 @@ fig.update_layout({
         }
     }
 })
+fig.update_xaxes(showspikes=True)
 fig.update_yaxes(title_text=stockSymbol, secondary_y=True)
 fig.update_yaxes(title_text="EMA Difference Change", secondary_y=False)
+fig.update_layout(hovermode='x')
 fig.show()
 
 
