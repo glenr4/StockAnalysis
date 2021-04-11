@@ -36,11 +36,11 @@ stocks['maDiffMediumLongChange'] = stocks['maDiffMediumLong'].diff()    # Differ
 
 # Calculate trade entry and exit points
 entryExitScaling = startingEquity
-stocks['entry'] = ((stocks['maShort'] > stocks['maMedium']) \
+stocks['entryTrigger'] = ((stocks['maShort'] > stocks['maMedium']) \
                               & (stocks['maShort'] > stocks['maLong']) \
                               & (stocks['maDiffMediumLongChange'] > 0)).astype(int) * entryExitScaling
 
-stocks['exit'] = (stocks['Close'] < stocks['maShort']).astype(int) * -entryExitScaling
+stocks['exitTrigger'] = (stocks['Close'] < stocks['maShort']).astype(int) * -entryExitScaling
 # display(stocks)
 
 # Calculate account equity
@@ -71,7 +71,7 @@ for row in stocks.iterrows():
             equity.append(data['Close'] * lastPurchaseQty)
 
             # Check for exit trigger
-            if (data['exit'] == -entryExitScaling):
+            if (data['exitTrigger'] == -entryExitScaling):
                 sellNextPeriod = True
                 buyNextPeriod = False
 
@@ -87,7 +87,7 @@ for row in stocks.iterrows():
             equity.append(lastEquity)
 
             # Check for entry trigger
-            if((data['entry'] == entryExitScaling) & (data['exit'] == 0)):
+            if((data['entryTrigger'] == entryExitScaling) & (data['exitTrigger'] == 0)):
                 buyNextPeriod = True
                 sellNextPeriod = False
 
@@ -106,7 +106,8 @@ stockData = {'x': stocks.index,
     'close': stocks['Close'],
     'type': 'candlestick',
     'increasing':{'fillcolor': '#FFFFFF'},
-    'decreasing':{'fillcolor': '#FF0000'}
+    'decreasing':{'fillcolor': '#FF0000'},
+    'name': 'Price'
  }
 
 maDiffMediumLongChange = {
@@ -155,18 +156,18 @@ maLong = {
 
 entryData={
     'x': stocks.index,
-    'y': stocks['entry'],
+    'y': stocks['entryTrigger'],
     'type': 'bar',
     'marker':{'color':'rgba(0, 0, 0, 0.3)'},
-    'name': 'Entry'
+    'name': 'Entry Trigger'
 }
 
 exitData={
     'x': stocks.index,
-    'y': stocks['exit'],
+    'y': stocks['exitTrigger'],
     'type': 'bar',
     'marker':{'color':'rgba(255, 0, 0, 0.3)'},
-    'name': 'Exit'
+    'name': 'Exit Trigger'
 }
 
 equityData = {
@@ -199,7 +200,7 @@ fig.add_trace(equityData, secondary_y=False)
 # Layout and configuration
 fig.update_layout({
     'title':{
-        'text': stockSymbol,
+        'text': "{} ({})".format(stockSymbol, timePeriod),
         'font':{
             'size': 25
         }
