@@ -4,15 +4,20 @@
 import datetime as dt
 import pandas_datareader.data as web
 from plotly.subplots import make_subplots
+from IPython.display import display
+import pandas as pd
 
 # Data
-start = dt.datetime(2020,1,1)
+start = dt.datetime(2020,2,20)
 end=dt.datetime.now()
 stockSymbol = 'BTC-USD'
 # stockSymbol = 'ETH-USD'
 
 stocks = web.DataReader([stockSymbol], 'yahoo', start, end)
 # display(stocks)
+
+startingEquity = 1000.0
+entryExitScaling = startingEquity
 
 # Get the data for the stockSymbol and configure as hollow candlestick
 stockData = {'x': stocks.index,
@@ -81,16 +86,16 @@ maLong = {
 # Calculate trade entry and exit points
 stocks['entry', stockSymbol] = ((stocks['maShort', stockSymbol] > stocks['maMedium', stockSymbol]) \
                               & (stocks['maShort', stockSymbol] > stocks['maLong', stockSymbol]) \
-                              & (stocks['maDiffMediumLongChange', stockSymbol] > 0)).astype(int)
+                              & (stocks['maDiffMediumLongChange', stockSymbol] > 0)).astype(int) * entryExitScaling
 
-stocks['exit', stockSymbol] = (stocks['Close', stockSymbol] < stocks['maShort', stockSymbol]).astype(int)*-1
+stocks['exit', stockSymbol] = (stocks['Close', stockSymbol] < stocks['maShort', stockSymbol]).astype(int) * -entryExitScaling
 # display(stocks)
 
 entryData={
     'x': stocks.index,
     'y': stocks['entry', stockSymbol],
     'type': 'bar',
-    'marker':{'color':'black'},
+    'marker':{'color':'rgba(0, 0, 0, 0.3)'},
     'name': 'Entry'
 }
 
@@ -98,8 +103,73 @@ exitData={
     'x': stocks.index,
     'y': stocks['exit', stockSymbol],
     'type': 'bar',
-    'marker':{'color':'red'},
-    'name': 'Entry'
+    'marker':{'color':'rgba(255, 0, 0, 0.3)'},
+    'name': 'Exit'
+}
+
+# Calculate account equity
+# We are using the Close price for all indicators, therefore when entering or closing a trade,
+# we do it on the Open of the next bar
+equity = []
+lastEquity = startingEquity
+inBullishTrade = False
+buyNextPeriod = False
+sellNextPeriod = False
+lastPurchaseQty = 0
+
+for row in stocks.iterrows():
+    data = row[1] # Note: row[0] is date time, row[1] is the row data
+    print(data)
+
+    if(pd.Timestamp('2020-11-26') == row[0]):
+        print('here')
+
+    if (inBullishTrade):
+        if(sellNextPeriod):
+            # Exit trade
+            equity.append(data['Open', stockSymbol] * lastPurchaseQty)
+            sellNextPeriod = False
+            buyNextPeriod = False
+            inBullishTrade = False
+        else:
+            equity.append(data['Close', stockSymbol] * lastPurchaseQty)
+
+            # Check for exit trigger
+            if (data['exit', stockSymbol] == -entryExitScaling):
+                sellNextPeriod = True
+                buyNextPeriod = False
+
+    else:
+        if(buyNextPeriod):
+            # Buy at Open
+            lastPurchaseQty = equity[-1] / data['Open', stockSymbol]
+            equity.append(data['Close', stockSymbol] * lastPurchaseQty) # Equity at end of day
+            inBullishTrade = True
+            buyNextPeriod = False
+        else:
+            # No change in equity
+            equity.append(lastEquity)
+
+            # Check for entry trigger
+            if((data['entry', stockSymbol] == entryExitScaling) & (data['exit', stockSymbol] == 0)):
+                buyNextPeriod = True
+                sellNextPeriod = False
+
+    # Save values for next iteration
+    lastEquity = equity[-1]
+
+stocks['equity', stockSymbol] = equity
+display(stocks)
+equityData = {
+    'x': stocks.index,
+    'y': stocks['equity', stockSymbol],
+    'type': 'scatter',
+    'mode': 'lines',
+    'line': {
+        'width': 2,
+        'color': 'black'
+    },
+    'name': 'Account Equity'
 }
 
 # Chart with separate y-axes (secondary goes on top of primary)
@@ -115,6 +185,7 @@ fig.add_trace(maLong, secondary_y=True)
 fig.add_trace(maDiffMediumLongChange, secondary_y=False)
 fig.add_trace(entryData, secondary_y=False)
 fig.add_trace(exitData, secondary_y=False)
+fig.add_trace(equityData, secondary_y=False)
 
 # Layout and configuration
 fig.update_layout({
