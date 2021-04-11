@@ -9,8 +9,9 @@ import pandas as pd
 import TimeSeriesResample as tsr
 
 # Settings
-start = dt.datetime(2018,1,1)
+start = dt.datetime(2020,1,1)
 end=dt.datetime.now()
+tradeStart = dt.datetime(2021,1,1) # equal to or after start
 stockSymbol = 'BTC-USD'
 # stockSymbol = 'ETH-USD'
 startingEquity = 1000.0
@@ -18,7 +19,7 @@ maShortPeriod = 10
 maMediumPeriod = 50
 maLongPeriod = 200
 timePeriod = 'daily' # daily, weekly or monthly
-exportData = True
+exportData = False
 
 # Get data
 stocks = web.DataReader(stockSymbol, 'yahoo', start, end)
@@ -28,9 +29,9 @@ if(timePeriod == 'monthly'):
     stocks = tsr.monthly(stocks)
 
 # Moving averages
-stocks['maShort'] = stocks['Close'].rolling(window=maShortPeriod,min_periods=1).mean()
-stocks['maMedium'] = stocks['Close'].rolling(window=maMediumPeriod, min_periods=1).mean()
-stocks['maLong'] = stocks['Close'].rolling(window=maLongPeriod, min_periods=1).mean()
+stocks['maShort'] = stocks['Close'].rolling(window=maShortPeriod,min_periods=maShortPeriod).mean()
+stocks['maMedium'] = stocks['Close'].rolling(window=maMediumPeriod, min_periods=maMediumPeriod).mean()
+stocks['maLong'] = stocks['Close'].rolling(window=maLongPeriod, min_periods=maLongPeriod).mean()
 stocks['maDiffMediumLong'] = stocks['maMedium'] - stocks['maLong']
 stocks['maDiffMediumLongChange'] = stocks['maDiffMediumLong'].diff()    # Difference from one row to the next
 stocks['maDiffShortMedium'] = stocks['maShort'] - stocks['maMedium']
@@ -55,50 +56,60 @@ inBullishTrade = False
 buyNextPeriod = False
 sellNextPeriod = False
 lastPurchaseQty = 0
+tradeCounter = 0
 
 for row in stocks.iterrows():
-    data = row[1] # Note: row[0] is date time, row[1] is the row data
-    # print(data)
+    if(row[0] > tradeStart):
 
-    # if(pd.Timestamp('2020-11-26') == row[0]):
-    #     print('here')
+        data = row[1] # Note: row[0] is date time, row[1] is the row data
+        # print(data)
 
-    if (inBullishTrade):
-        if(sellNextPeriod):
-            # Exit trade
-            equity.append(data['Open'] * lastPurchaseQty)
-            sellNextPeriod = False
-            buyNextPeriod = False
-            inBullishTrade = False
-        else:
-            equity.append(data['Close'] * lastPurchaseQty)
+        # if(pd.Timestamp('2020-11-26') == row[0]):
+        #     print('here')
 
-            # Check for exit trigger
-            if (data['exitTrigger'] == -entryExitScaling):
-                sellNextPeriod = True
-                buyNextPeriod = False
-
-    else:
-        if(buyNextPeriod):
-            # Buy at Open
-            lastPurchaseQty = equity[-1] / data['Open']
-            equity.append(data['Close'] * lastPurchaseQty) # Equity at end of day
-            inBullishTrade = True
-            buyNextPeriod = False
-        else:
-            # No change in equity
-            equity.append(lastEquity)
-
-            # Check for entry trigger
-            if((data['entryTrigger'] == entryExitScaling) & (data['exitTrigger'] == 0)):
-                buyNextPeriod = True
+        if (inBullishTrade):
+            if(sellNextPeriod):
+                # Exit trade
+                equity.append(data['Open'] * lastPurchaseQty)
                 sellNextPeriod = False
+                buyNextPeriod = False
+                inBullishTrade = False
+            else:
+                equity.append(data['Close'] * lastPurchaseQty)
 
-    # Save values for next iteration
-    lastEquity = equity[-1]
+                # Check for exit trigger
+                if (data['exitTrigger'] == -entryExitScaling):
+                    sellNextPeriod = True
+                    buyNextPeriod = False
+
+        else:
+            if(buyNextPeriod):
+                # Buy at Open
+                lastPurchaseQty = equity[-1] / data['Open']
+                equity.append(data['Close'] * lastPurchaseQty) # Equity at end of day
+                inBullishTrade = True
+                buyNextPeriod = False
+                tradeCounter += 1
+            else:
+                # No change in equity
+                equity.append(lastEquity)
+
+                # Check for entry trigger
+                if((data['entryTrigger'] == entryExitScaling) & (data['exitTrigger'] == 0)):
+                    buyNextPeriod = True
+                    sellNextPeriod = False
+
+        # Save values for next iteration
+        lastEquity = equity[-1]
+    else:
+        # Haven't started trading yet
+        equity.append(startingEquity)
+
 
 stocks['equity'] = equity
-display(stocks)
+# display(stocks)
+
+print("Summary: {}% return on investment after {} trades".format(round(((stocks['equity'][-1] - startingEquity) / startingEquity) * 100, 2), tradeCounter))
 
 # Plot dictionaries
 # Get the data for the stockSymbol and configure as hollow candlestick
