@@ -3,20 +3,28 @@
 import pandas as pd
 
 def weekly(df):
-    def take_first(array_like):
-        return array_like[0]
-
-    def take_last(array_like):
-        return array_like[-1]
-
-    output = df.resample('W').agg({'Open': take_first,
+    output = df.resample('W').agg({
+        'Open': lambda x: x[0],
         'High': 'max',
         'Low': 'min',
-        'Close': take_last,
-        'Adj Close': take_last,
-        'Volume': 'sum'}) # to put the labels to Monday
+        'Close': lambda x: x[-1],
+        'Adj Close': lambda x: x[-1],
+        'Volume': 'sum'})
 
     output = output[['Open', 'High', 'Low', 'Close','Adj Close', 'Volume']]
-    output.index = output.index + pd.DateOffset(days=-6)
+    # output.index = output.index + pd.DateOffset(days=-6) # to put the labels to Monday
+
+    return output
+
+def monthly(df):
+    output = df.resample('M').agg({
+        'Open': lambda x: x[0],
+        'High': 'max',
+        'Low': 'min',
+        'Close': lambda x: x[-1],
+        'Adj Close': lambda x: x[-1],
+        'Volume': 'sum'})
+
+    output = output[['Open', 'High', 'Low', 'Close','Adj Close', 'Volume']]
 
     return output

@@ -9,20 +9,22 @@ import pandas as pd
 import TimeSeriesResample as tsr
 
 # Settings
-startingEquity = 1000.0
-maShortPeriod = 10
-maMediumPeriod = 50
-maLongPeriod = 200
-
-# Data
 start = dt.datetime(2018,1,1)
 end=dt.datetime.now()
 stockSymbol = 'BTC-USD'
 # stockSymbol = 'ETH-USD'
+startingEquity = 1000.0
+maShortPeriod = 10
+maMediumPeriod = 50
+maLongPeriod = 200
+timePeriod = 'daily' # daily, weekly or monthly
 
+# Get data
 stocks = web.DataReader(stockSymbol, 'yahoo', start, end)
-# Resample to weekly
-stocks = tsr.weekly(stocks)
+if(timePeriod == 'weekly'):
+    stocks = tsr.weekly(stocks)
+if(timePeriod == 'monthly'):
+    stocks = tsr.monthly(stocks)
 
 # Moving averages
 stocks['maShort'] = stocks['Close'].rolling(window=maShortPeriod,min_periods=1).mean()
