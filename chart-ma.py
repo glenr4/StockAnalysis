@@ -6,6 +6,7 @@ import pandas_datareader.data as web
 from plotly.subplots import make_subplots
 from IPython.display import display
 import pandas as pd
+import TimeSeriesResample as tsr
 
 # Settings
 startingEquity = 1000.0
@@ -19,24 +20,25 @@ end=dt.datetime.now()
 stockSymbol = 'BTC-USD'
 # stockSymbol = 'ETH-USD'
 
-stocks = web.DataReader([stockSymbol], 'yahoo', start, end)
-# display(stocks)
+stocks = web.DataReader(stockSymbol, 'yahoo', start, end)
+# Resample to weekly
+stocks = tsr.weekly(stocks)
 
 # Moving averages
-stocks['maShort', stockSymbol] = stocks.Close[stockSymbol].rolling(window=maShortPeriod,min_periods=1).mean()
-stocks['maMedium', stockSymbol] = stocks.Close[stockSymbol].rolling(window=maMediumPeriod, min_periods=1).mean()
-stocks['maLong', stockSymbol] = stocks.Close[stockSymbol].rolling(window=maLongPeriod, min_periods=1).mean()
-stocks['maDiffMediumLong', stockSymbol] = stocks['maMedium', stockSymbol] - stocks['maLong', stockSymbol]
-stocks['maDiffMediumLongChange', stockSymbol] = stocks['maDiffMediumLong', stockSymbol].diff()    # Difference from one row to the next
+stocks['maShort'] = stocks['Close'].rolling(window=maShortPeriod,min_periods=1).mean()
+stocks['maMedium'] = stocks['Close'].rolling(window=maMediumPeriod, min_periods=1).mean()
+stocks['maLong'] = stocks['Close'].rolling(window=maLongPeriod, min_periods=1).mean()
+stocks['maDiffMediumLong'] = stocks['maMedium'] - stocks['maLong']
+stocks['maDiffMediumLongChange'] = stocks['maDiffMediumLong'].diff()    # Difference from one row to the next
 # display(stocks)
 
 # Calculate trade entry and exit points
 entryExitScaling = startingEquity
-stocks['entry', stockSymbol] = ((stocks['maShort', stockSymbol] > stocks['maMedium', stockSymbol]) \
-                              & (stocks['maShort', stockSymbol] > stocks['maLong', stockSymbol]) \
-                              & (stocks['maDiffMediumLongChange', stockSymbol] > 0)).astype(int) * entryExitScaling
+stocks['entry'] = ((stocks['maShort'] > stocks['maMedium']) \
+                              & (stocks['maShort'] > stocks['maLong']) \
+                              & (stocks['maDiffMediumLongChange'] > 0)).astype(int) * entryExitScaling
 
-stocks['exit', stockSymbol] = (stocks['Close', stockSymbol] < stocks['maShort', stockSymbol]).astype(int) * -entryExitScaling
+stocks['exit'] = (stocks['Close'] < stocks['maShort']).astype(int) * -entryExitScaling
 # display(stocks)
 
 # Calculate account equity
@@ -59,23 +61,23 @@ for row in stocks.iterrows():
     if (inBullishTrade):
         if(sellNextPeriod):
             # Exit trade
-            equity.append(data['Open', stockSymbol] * lastPurchaseQty)
+            equity.append(data['Open'] * lastPurchaseQty)
             sellNextPeriod = False
             buyNextPeriod = False
             inBullishTrade = False
         else:
-            equity.append(data['Close', stockSymbol] * lastPurchaseQty)
+            equity.append(data['Close'] * lastPurchaseQty)
 
             # Check for exit trigger
-            if (data['exit', stockSymbol] == -entryExitScaling):
+            if (data['exit'] == -entryExitScaling):
                 sellNextPeriod = True
                 buyNextPeriod = False
 
     else:
         if(buyNextPeriod):
             # Buy at Open
-            lastPurchaseQty = equity[-1] / data['Open', stockSymbol]
-            equity.append(data['Close', stockSymbol] * lastPurchaseQty) # Equity at end of day
+            lastPurchaseQty = equity[-1] / data['Open']
+            equity.append(data['Close'] * lastPurchaseQty) # Equity at end of day
             inBullishTrade = True
             buyNextPeriod = False
         else:
@@ -83,23 +85,23 @@ for row in stocks.iterrows():
             equity.append(lastEquity)
 
             # Check for entry trigger
-            if((data['entry', stockSymbol] == entryExitScaling) & (data['exit', stockSymbol] == 0)):
+            if((data['entry'] == entryExitScaling) & (data['exit'] == 0)):
                 buyNextPeriod = True
                 sellNextPeriod = False
 
     # Save values for next iteration
     lastEquity = equity[-1]
 
-stocks['equity', stockSymbol] = equity
+stocks['equity'] = equity
 display(stocks)
 
 # Plot dictionaries
 # Get the data for the stockSymbol and configure as hollow candlestick
 stockData = {'x': stocks.index,
-    'open': stocks[('Open', stockSymbol)],
-    'high': stocks[('High', stockSymbol)],
-    'low': stocks[('Low', stockSymbol)],
-    'close': stocks[('Close', stockSymbol)],
+    'open': stocks['Open'],
+    'high': stocks['High'],
+    'low': stocks['Low'],
+    'close': stocks['Close'],
     'type': 'candlestick',
     'increasing':{'fillcolor': '#FFFFFF'},
     'decreasing':{'fillcolor': '#FF0000'}
@@ -107,7 +109,7 @@ stockData = {'x': stocks.index,
 
 maDiffMediumLongChange = {
     'x': stocks.index,
-    'y': stocks['maDiffMediumLongChange', stockSymbol],
+    'y': stocks['maDiffMediumLongChange'],
     'type': 'bar',
     'marker':{'color':'rgba(0, 127, 14, 0.3)'},
     'name': 'Medium-Long Difference Change'
@@ -115,7 +117,7 @@ maDiffMediumLongChange = {
 
 maShort = {
     'x': stocks.index,
-    'y': stocks['maShort', stockSymbol],
+    'y': stocks['maShort'],
     'type': 'scatter',
     'mode': 'lines',
     'line': {
@@ -127,7 +129,7 @@ maShort = {
 
 maMedium = {
     'x': stocks.index,
-    'y': stocks['maMedium', stockSymbol],
+    'y': stocks['maMedium'],
     'type': 'scatter',
     'mode': 'lines',
     'line': {
@@ -139,7 +141,7 @@ maMedium = {
 
 maLong = {
     'x': stocks.index,
-    'y': stocks['maLong', stockSymbol],
+    'y': stocks['maLong'],
     'type': 'scatter',
     'mode': 'lines',
     'line': {
@@ -151,7 +153,7 @@ maLong = {
 
 entryData={
     'x': stocks.index,
-    'y': stocks['entry', stockSymbol],
+    'y': stocks['entry'],
     'type': 'bar',
     'marker':{'color':'rgba(0, 0, 0, 0.3)'},
     'name': 'Entry'
@@ -159,7 +161,7 @@ entryData={
 
 exitData={
     'x': stocks.index,
-    'y': stocks['exit', stockSymbol],
+    'y': stocks['exit'],
     'type': 'bar',
     'marker':{'color':'rgba(255, 0, 0, 0.3)'},
     'name': 'Exit'
@@ -167,7 +169,7 @@ exitData={
 
 equityData = {
     'x': stocks.index,
-    'y': stocks['equity', stockSymbol],
+    'y': stocks['equity'],
     'type': 'scatter',
     'mode': 'lines',
     'line': {
