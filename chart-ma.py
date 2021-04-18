@@ -7,13 +7,17 @@ from plotly.subplots import make_subplots
 from IPython.display import display
 import pandas as pd
 import TimeSeriesResample as tsr
+import plotly.graph_objects as go
 
 # Settings
-start = dt.datetime(2020,1,1)
+start = dt.datetime(2019,1,1)
 end=dt.datetime.now()
-tradeStart = dt.datetime(2021,1,1) # equal to or after start
+tradeStart = dt.datetime(2020,12,1) # dt.datetime(2020,10,14) # equal to or after start
 stockSymbol = 'BTC-USD'
+# stockSymbol = 'TRX-USD'
 # stockSymbol = 'ETH-USD'
+# stockSymbol = 'XRP-USD'
+# stockSymbol = '^AXJO' # ASX200
 startingEquity = 1000.0
 maShortPeriod = 10
 maMediumPeriod = 50
@@ -57,11 +61,14 @@ buyNextPeriod = False
 sellNextPeriod = False
 lastPurchaseQty = 0
 tradeCounter = 0
+firstTradeDayData = None
 
 for row in stocks.iterrows():
     if(row[0] > tradeStart):
 
         data = row[1] # Note: row[0] is date time, row[1] is the row data
+        if firstTradeDayData is None:
+            firstTradeDayData = row[1]
         # print(data)
 
         # if(pd.Timestamp('2020-11-26') == row[0]):
@@ -110,6 +117,7 @@ stocks['equity'] = equity
 # display(stocks)
 
 print("Summary: {}% return on investment after {} trades".format(round(((stocks['equity'][-1] - startingEquity) / startingEquity) * 100, 2), tradeCounter))
+print("Buy and hold return on investment {}%".format(round(((stocks['Close'][-1] - firstTradeDayData['Open']) / firstTradeDayData['Open']) * 100, 2)))
 
 # Plot dictionaries
 # Get the data for the stockSymbol and configure as hollow candlestick
