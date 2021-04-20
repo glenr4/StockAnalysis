@@ -116,8 +116,12 @@ for row in stocks.iterrows():
 stocks['equity'] = equity
 # display(stocks)
 
-print("Summary: {}% return on investment after {} trades".format(round(((stocks['equity'][-1] - startingEquity) / startingEquity) * 100, 2), tradeCounter))
-print("Buy and hold return on investment {}%".format(round(((stocks['Close'][-1] - firstTradeDayData['Open']) / firstTradeDayData['Open']) * 100, 2)))
+# Return on Investment
+roi = round(((stocks['equity'][-1] - startingEquity) / startingEquity) * 100, 2)
+buyHoldRoi = round(((stocks['Close'][-1] - firstTradeDayData['Open']) / firstTradeDayData['Open']) * 100, 2)
+
+print("Summary: {}% return on investment after {} trades".format(roi, tradeCounter))
+print("Buy and hold return on investment {}%".format(buyHoldRoi))
 
 # Plot dictionaries
 # Get the data for the stockSymbol and configure as hollow candlestick
@@ -228,10 +232,16 @@ fig.add_trace(entryData, secondary_y=False)
 fig.add_trace(exitData, secondary_y=False)
 fig.add_trace(equityData, secondary_y=False)
 
+def formatDate(dt):
+    return "{}/{}/{}".format(dt.strftime("%d"), dt.strftime("%m"), dt.strftime("%Y"))
+
+
 # Layout and configuration
+dateSubtitle = "{} - {}".format(formatDate(tradeStart), formatDate(end))
+roiSubtitle = "ROI: {}% - Buy & Hold ROI: {}%".format(roi, buyHoldRoi)
 fig.update_layout({
     'title':{
-        'text': "{} ({})".format(stockSymbol, timePeriod),
+        'text': "{} ({})<br><span style='font-size: 18px'>{}<br>{}</span>".format(stockSymbol, timePeriod, dateSubtitle, roiSubtitle),
         'font':{
             'size': 25
         }
