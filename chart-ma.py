@@ -12,7 +12,7 @@ import plotly.graph_objects as go
 # Settings
 start = dt.datetime(2010,1,1)   # dt.datetime(2019,1,1)
 end=dt.datetime.now()
-tradeStart = start  # dt.datetime(2020,12,1) # dt.datetime(2020,10,14) # equal to or after start
+tradeStart = dt.datetime(2011,8,22) # dt.datetime(2020,10,14) # equal to or after start
 
 # stockSymbol = 'BTC-USD'
 # stockSymbol = 'TRX-USD'
@@ -47,11 +47,12 @@ stocks['maDiffShortMediumChange'] = stocks['maDiffShortMedium'].diff()    # Diff
 # display(stocks)
 
 # Calculate trade entry and exit points
-stocks['entryTrigger'] = ((stocks['maShort'] > stocks['maMedium']) \
-                              & (stocks['maShort'] > stocks['maLong']) \
-                              & (stocks['maDiffMediumLongChange'] > 0))
+stocks['entryTrigger'] =(stocks['maDiffShortMediumChange'] > 0) \
+                        & (stocks['maDiffMediumLongChange'] > 0) \
+                        & (stocks['maShort'] > stocks['maMedium'])
 
-stocks['exitTrigger'] = (stocks['Close'] < stocks['maShort'])
+stocks['exitTrigger'] = (stocks['maDiffShortMediumChange'] < 0) \
+                        & (stocks['Close'] < stocks['maShort'])
 # display(stocks)
 
 # Calculate account equity
@@ -63,7 +64,7 @@ inBullishTrade = False
 buyNextPeriod = False
 sellNextPeriod = False
 lastPurchaseQty = 0
-tradeCounter = 0
+tradeCount = 0
 firstTradeDayData = None
 
 annotations = []
@@ -77,7 +78,7 @@ def addEntryArrow(date, price):
             'showarrow': True,
             'arrowhead': 1,
             'arrowwidth': 3,
-            'arrowcolor': 'green',
+            'arrowcolor': 'black',
             'ax': 0,
             'ay': 40,
             'yshift': -10
@@ -94,7 +95,7 @@ def addExitArrow(date, price):
             'showarrow': True,
             'arrowhead': 1,
             'arrowwidth': 3,
-            'arrowcolor': 'red',
+            'arrowcolor': 'black',
             'ax': 0,
             'ay': -40,
             'yshift': 10
@@ -137,7 +138,7 @@ for row in stocks.iterrows():
                 equity.append(data['Close'] * lastPurchaseQty) # Equity at end of day
                 inBullishTrade = True
                 buyNextPeriod = False
-                tradeCounter += 1
+                tradeCount += 1
 
                 addEntryArrow(row[0], row[1])
             else:
@@ -163,7 +164,7 @@ stocks['equity'] = equity
 roi = round(((stocks['equity'][-1] - startingEquity) / startingEquity) * 100, 2)
 buyHoldRoi = round(((stocks['Close'][-1] - firstTradeDayData['Open']) / firstTradeDayData['Open']) * 100, 2)
 
-print("Summary: {}% return on investment after {} trades".format(roi, tradeCounter))
+print("Summary: {}% return on investment after {} trades".format(roi, tradeCount))
 print("Buy and hold return on investment {}%".format(buyHoldRoi))
 
 # Plot dictionaries
@@ -183,7 +184,7 @@ maDiff1 = {
     'x': stocks.index,
     'y': stocks['maDiffMediumLongChange']*startingEquity, # Add a factor so that it is easy to see on the chart
     'type': 'bar',
-    'marker':{'color':'rgba(0, 127, 14, 1.0)'},
+    'marker':{'color':'blue'},
     'name': 'Medium-Long Difference Change'
 }
 
@@ -191,7 +192,7 @@ maDiff2= {
     'x': stocks.index,
     'y': stocks['maDiffShortMediumChange']*startingEquity,  # Add a factor so that it is easy to see on the chart
     'type': 'bar',
-    'marker':{'color':'rgba(0, 127, 255, 1.0)'},
+    'marker':{'color':'red'},
     'name': 'Short-Medium Difference Change'
 }
 
@@ -263,7 +264,7 @@ def formatDate(dt):
 
 # Layout and configuration
 dateSubtitle = "{} - {}".format(formatDate(tradeStart), formatDate(end))
-roiSubtitle = "ROI: {}% - Buy & Hold ROI: {}%".format(roi, buyHoldRoi)
+roiSubtitle = "ROI: {}% from {} trades - Buy & Hold ROI: {}%".format(roi, tradeCount, buyHoldRoi)
 fig.update_layout({
     'title':{
         'text': "{} ({})<br><span style='font-size: 18px'>{}<br>{}</span>".format(stockSymbol, timePeriod, dateSubtitle, roiSubtitle),
@@ -276,7 +277,7 @@ fig.update_layout({
 fig.update_xaxes(showspikes=True)
 fig.update_yaxes(title_text=stockSymbol, secondary_y=True)
 fig.update_yaxes(title_text="EMA Difference Change", secondary_y=False)
-fig.update_layout(hovermode='x')
+# fig.update_layout(hovermode='x')
 fig.show()
 
 # Write to excel
