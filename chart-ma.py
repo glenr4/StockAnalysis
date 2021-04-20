@@ -27,7 +27,6 @@ maShortPeriod = 10
 maMediumPeriod = 50
 maLongPeriod = 200
 timePeriod = 'daily' # daily, weekly or monthly
-exportData = False
 
 # Get data
 stocks = web.DataReader(stockSymbol, 'yahoo', start, end)
@@ -48,8 +47,9 @@ stocks['maDiffShortMediumChange'] = stocks['maDiffShortMedium'].diff()    # Diff
 
 # Calculate trade entry and exit points
 stocks['entryTrigger'] = (stocks['maShort'] > stocks['maMedium']) & (stocks['maMedium'] > stocks['maLong'])
-
+entryTriggerText = "(stocks['maShort'] > stocks['maMedium']) & (stocks['maMedium'] > stocks['maLong'])"
 stocks['exitTrigger'] = (stocks['maShort'] < stocks['maMedium'])
+exitTriggerText = "(stocks['maShort'] < stocks['maMedium'])"
 # display(stocks)
 
 # Calculate account equity
@@ -106,9 +106,6 @@ for row in stocks.iterrows():
         if firstTradeDayData is None:
             firstTradeDayData = row[1]
         # print(data)
-
-        # if(pd.Timestamp('2020-11-26') == row[0]):
-        #     print('here')
 
         if (inBullishTrade):
             if(sellNextPeriod):
@@ -202,7 +199,7 @@ maShort = {
         'width': 2,
         'color': 'purple'
     },
-    'name': 'Short Moving Average'
+    'name': 'Short Moving Average ({})'.format(maShortPeriod)
 }
 
 maMedium = {
@@ -214,7 +211,7 @@ maMedium = {
         'width': 2,
         'color': 'red'
     },
-    'name': 'Medium Moving Average'
+    'name': 'Medium Moving Average ({})'.format(maMediumPeriod)
 }
 
 maLong = {
@@ -226,7 +223,7 @@ maLong = {
         'width': 2,
         'color': 'blue'
     },
-    'name': 'Long Moving Average'
+    'name': 'Long Moving Average ({})'.format(maLongPeriod)
 }
 
 equityData = {
@@ -255,16 +252,19 @@ fig.add_trace(maDiff2, secondary_y=False)
 fig.add_trace(maDiff1, secondary_y=False)
 fig.add_trace(equityData, secondary_y=False)
 
-def formatDate(dt):
-    return "{}/{}/{}".format(dt.strftime("%d"), dt.strftime("%m"), dt.strftime("%Y"))
+def formatDate(date, separator='/'):
+    return "{}{}{}{}{}".format(date.strftime("%d"), separator, date.strftime("%m"), separator, date.strftime("%Y"))
 
 
 # Layout and configuration
 dateSubtitle = "{} - {}".format(formatDate(tradeStart), formatDate(end))
 roiSubtitle = "ROI: {}% from {} trades - Buy & Hold ROI: {}%".format(roi, tradeCount, buyHoldRoi)
+
+
 fig.update_layout({
     'title':{
-        'text': "{} ({})<br><span style='font-size: 18px'>{}<br>{}</span>".format(stockSymbol, timePeriod, dateSubtitle, roiSubtitle),
+        'text': "{} ({})<br><span style='font-size: 18px'>{}<br>{}</span><br><span style='font-size: 14px'>Entry: {}<br>Exit: {}</span>" \
+            .format(stockSymbol, timePeriod, dateSubtitle, roiSubtitle, entryTriggerText, exitTriggerText),
         'font':{
             'size': 25
         }
@@ -273,13 +273,12 @@ fig.update_layout({
 })
 fig.update_xaxes(showspikes=True)
 fig.update_yaxes(title_text=stockSymbol, secondary_y=True)
-fig.update_yaxes(title_text="EMA Difference Change", secondary_y=False)
+fig.update_yaxes(title_text="Equity ($)", secondary_y=False)
 # fig.update_layout(hovermode='x')
 fig.show()
 
-# Write to excel
-if(exportData):
-    stocks.to_csv("export/{}_{}_short{}_med{}_long{}.csv".format(stockSymbol, timePeriod, maShortPeriod, maMediumPeriod, maLongPeriod))
+# Save chart
+fig.write_html("export/{}_{}_{}_{}.html".format(stockSymbol, roi, buyHoldRoi, formatDate(start, '_')))
 
 
 
