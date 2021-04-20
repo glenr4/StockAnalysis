@@ -10,17 +10,17 @@ import TimeSeriesResample as tsr
 import plotly.graph_objects as go
 
 # Settings
-start = dt.datetime(2010,1,1)   # dt.datetime(2019,1,1)
+start = dt.datetime(2018,7,26)   # dt.datetime(2019,1,1)
+tradeStart = dt.datetime(2017,7,26) # dt.datetime(2020,10,14) # equal to or after start
 end=dt.datetime.now()
-tradeStart = dt.datetime(2011,8,22) # dt.datetime(2020,10,14) # equal to or after start
 
 # stockSymbol = 'BTC-USD'
 # stockSymbol = 'TRX-USD'
-# stockSymbol = 'ETH-USD'
+stockSymbol = 'ETH-USD'
 # stockSymbol = 'XRP-USD'
 # stockSymbol = '^AXJO' # ASX200
 # stockSymbol = 'GC=F'  # Gold Jun 21 (GC=F)
-stockSymbol = 'GLD'  # SPDR Gold Shares
+# stockSymbol = 'GLD'  # SPDR Gold Shares
 
 startingEquity = 100.0
 maShortPeriod = 10
@@ -47,12 +47,9 @@ stocks['maDiffShortMediumChange'] = stocks['maDiffShortMedium'].diff()    # Diff
 # display(stocks)
 
 # Calculate trade entry and exit points
-stocks['entryTrigger'] =(stocks['maDiffShortMediumChange'] > 0) \
-                        & (stocks['maDiffMediumLongChange'] > 0) \
-                        & (stocks['maShort'] > stocks['maMedium'])
+stocks['entryTrigger'] = (stocks['maShort'] > stocks['maMedium']) & (stocks['maMedium'] > stocks['maLong'])
 
-stocks['exitTrigger'] = (stocks['maDiffShortMediumChange'] < 0) \
-                        & (stocks['Close'] < stocks['maShort'])
+stocks['exitTrigger'] = (stocks['maShort'] < stocks['maMedium'])
 # display(stocks)
 
 # Calculate account equity
@@ -182,7 +179,7 @@ stockData = {'x': stocks.index,
 
 maDiff1 = {
     'x': stocks.index,
-    'y': stocks['maDiffMediumLongChange']*startingEquity, # Add a factor so that it is easy to see on the chart
+    'y': stocks['maDiffMediumLongChange'],
     'type': 'bar',
     'marker':{'color':'blue'},
     'name': 'Medium-Long Difference Change'
@@ -190,7 +187,7 @@ maDiff1 = {
 
 maDiff2= {
     'x': stocks.index,
-    'y': stocks['maDiffShortMediumChange']*startingEquity,  # Add a factor so that it is easy to see on the chart
+    'y': stocks['maDiffShortMediumChange'],
     'type': 'bar',
     'marker':{'color':'red'},
     'name': 'Short-Medium Difference Change'

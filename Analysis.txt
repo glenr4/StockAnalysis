@@ -1,0 +1,14 @@
+// Gives at best same as buy and hold
+stocks['entryTrigger'] = ((stocks['maShort'] > stocks['maMedium']) \
+                              & (stocks['maShort'] > stocks['maLong']) \
+                              & (stocks['maDiffMediumLongChange'] > 0))
+
+stocks['exitTrigger'] = (stocks['Close'] < stocks['maShort'])
+
+// Not as good as buy and hold
+# stocks['entryTrigger'] =(stocks['maDiffShortMediumChange'] > 0) \
+#                         & (stocks['maDiffMediumLongChange'] > 0) \
+#                         & (stocks['maShort'] > stocks['maMedium'])
+#
+# stocks['exitTrigger'] = (stocks['maDiffShortMediumChange'] < 0) \
+#                         & (stocks['Close'] < stocks['maShort'])
