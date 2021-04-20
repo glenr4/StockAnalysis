@@ -47,12 +47,11 @@ stocks['maDiffShortMediumChange'] = stocks['maDiffShortMedium'].diff()    # Diff
 # display(stocks)
 
 # Calculate trade entry and exit points
-entryExitScaling = startingEquity
 stocks['entryTrigger'] = ((stocks['maShort'] > stocks['maMedium']) \
                               & (stocks['maShort'] > stocks['maLong']) \
-                              & (stocks['maDiffMediumLongChange'] > 0)).astype(int) * entryExitScaling
+                              & (stocks['maDiffMediumLongChange'] > 0))
 
-stocks['exitTrigger'] = (stocks['Close'] < stocks['maShort']).astype(int) * -entryExitScaling
+stocks['exitTrigger'] = (stocks['Close'] < stocks['maShort'])
 # display(stocks)
 
 # Calculate account equity
@@ -127,7 +126,7 @@ for row in stocks.iterrows():
                 equity.append(data['Close'] * lastPurchaseQty)
 
                 # Check for exit trigger
-                if (data['exitTrigger'] == -entryExitScaling):
+                if (data['exitTrigger']):
                     sellNextPeriod = True
                     buyNextPeriod = False
 
@@ -146,7 +145,7 @@ for row in stocks.iterrows():
                 equity.append(lastEquity)
 
                 # Check for entry trigger
-                if ((data['entryTrigger'] == entryExitScaling) & (data['exitTrigger'] == 0)):
+                if ((data['entryTrigger']) & (not data['exitTrigger'])):
                     buyNextPeriod = True
                     sellNextPeriod = False
 
