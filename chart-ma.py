@@ -142,12 +142,13 @@ for row in stocks.iterrows():
 
                 addEntryArrow(row[0], row[1])
             else:
-                equity.append(data['Close'] * lastPurchaseQty)
+                # No change in equity
+                equity.append(lastEquity)
 
-                # Check for exit trigger
-                if (data['exitTrigger'] == -entryExitScaling):
-                    sellNextPeriod = True
-                    buyNextPeriod = False
+                # Check for entry trigger
+                if ((data['entryTrigger'] == entryExitScaling) & (data['exitTrigger'] == 0)):
+                    buyNextPeriod = True
+                    sellNextPeriod = False
 
         # Save values for next iteration
         lastEquity = equity[-1]
