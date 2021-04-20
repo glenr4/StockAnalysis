@@ -254,6 +254,8 @@ fig.add_trace(equityData, secondary_y=False)
 
 def formatDate(date, separator='/'):
     return "{}{}{}{}{}".format(date.strftime("%d"), separator, date.strftime("%m"), separator, date.strftime("%Y"))
+def formatDateTime(date, separator='/', timeSeparator=':'):
+    return "{}{}{}{}{}_{}{}{}".format(date.strftime("%d"), separator, date.strftime("%m"), separator, date.strftime("%Y"), date.strftime("%H"), timeSeparator, date.strftime("%M"))
 
 
 # Layout and configuration
@@ -278,7 +280,7 @@ fig.update_yaxes(title_text="Equity ($)", secondary_y=False)
 fig.show()
 
 # Save chart
-fig.write_html("export/{}_{}_{}_{}.html".format(stockSymbol, roi, buyHoldRoi, formatDate(start, '_')))
+fig.write_html("export/{}_ROI{}_BHROI{}_Start{}_End{}.html".format(stockSymbol, roi, buyHoldRoi, formatDate(start, '-'), formatDateTime(end, '-', '-')))
 
 
 
