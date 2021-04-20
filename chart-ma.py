@@ -10,15 +10,19 @@ import TimeSeriesResample as tsr
 import plotly.graph_objects as go
 
 # Settings
-start = dt.datetime(2019,1,1)
+start = dt.datetime(2010,1,1)   # dt.datetime(2019,1,1)
 end=dt.datetime.now()
-tradeStart = dt.datetime(2020,12,1) # dt.datetime(2020,10,14) # equal to or after start
-stockSymbol = 'BTC-USD'
+tradeStart = start  # dt.datetime(2020,12,1) # dt.datetime(2020,10,14) # equal to or after start
+
+# stockSymbol = 'BTC-USD'
 # stockSymbol = 'TRX-USD'
 # stockSymbol = 'ETH-USD'
 # stockSymbol = 'XRP-USD'
 # stockSymbol = '^AXJO' # ASX200
-startingEquity = 1000.0
+# stockSymbol = 'GC=F'  # Gold Jun 21 (GC=F)
+stockSymbol = 'GLD'  # SPDR Gold Shares
+
+startingEquity = 100.0
 maShortPeriod = 10
 maMediumPeriod = 50
 maLongPeriod = 200
@@ -63,6 +67,41 @@ lastPurchaseQty = 0
 tradeCounter = 0
 firstTradeDayData = None
 
+annotations = []
+def addEntryArrow(date, price):
+    annotations.append(
+        {
+            'x': date,
+            'y': price['Low'],
+            'xref': 'x',
+            'yref': 'y2', # use candle's axis
+            'showarrow': True,
+            'arrowhead': 1,
+            'arrowwidth': 3,
+            'arrowcolor': 'green',
+            'ax': 0,
+            'ay': 40,
+            'yshift': -10
+        }
+    )
+
+def addExitArrow(date, price):
+    annotations.append(
+        {
+            'x': date,
+            'y': price['High'],
+            'xref': 'x',
+            'yref': 'y2',  # use candle's axis
+            'showarrow': True,
+            'arrowhead': 1,
+            'arrowwidth': 3,
+            'arrowcolor': 'red',
+            'ax': 0,
+            'ay': -40,
+            'yshift': 10
+        }
+    )
+
 for row in stocks.iterrows():
     if(row[0] > tradeStart):
 
@@ -81,6 +120,9 @@ for row in stocks.iterrows():
                 sellNextPeriod = False
                 buyNextPeriod = False
                 inBullishTrade = False
+
+                addExitArrow(row[0], row[1])
+
             else:
                 equity.append(data['Close'] * lastPurchaseQty)
 
@@ -97,14 +139,15 @@ for row in stocks.iterrows():
                 inBullishTrade = True
                 buyNextPeriod = False
                 tradeCounter += 1
-            else:
-                # No change in equity
-                equity.append(lastEquity)
 
-                # Check for entry trigger
-                if((data['entryTrigger'] == entryExitScaling) & (data['exitTrigger'] == 0)):
-                    buyNextPeriod = True
-                    sellNextPeriod = False
+                addEntryArrow(row[0], row[1])
+            else:
+                equity.append(data['Close'] * lastPurchaseQty)
+
+                # Check for exit trigger
+                if (data['exitTrigger'] == -entryExitScaling):
+                    sellNextPeriod = True
+                    buyNextPeriod = False
 
         # Save values for next iteration
         lastEquity = equity[-1]
@@ -136,19 +179,19 @@ stockData = {'x': stocks.index,
     'name': 'Price'
  }
 
-maDiffMediumLongChange = {
+maDiff1 = {
     'x': stocks.index,
-    'y': stocks['maDiffMediumLongChange'],
+    'y': stocks['maDiffMediumLongChange']*startingEquity, # Add a factor so that it is easy to see on the chart
     'type': 'bar',
-    'marker':{'color':'rgba(0, 127, 14, 0.3)'},
+    'marker':{'color':'rgba(0, 127, 14, 1.0)'},
     'name': 'Medium-Long Difference Change'
 }
 
-maDiffShortMediumChange= {
+maDiff2= {
     'x': stocks.index,
-    'y': stocks['maDiffShortMediumChange'],
+    'y': stocks['maDiffShortMediumChange']*startingEquity,  # Add a factor so that it is easy to see on the chart
     'type': 'bar',
-    'marker':{'color':'rgba(0, 127, 255, 0.3)'},
+    'marker':{'color':'rgba(0, 127, 255, 1.0)'},
     'name': 'Short-Medium Difference Change'
 }
 
@@ -188,22 +231,6 @@ maLong = {
     'name': 'Long Moving Average'
 }
 
-entryData={
-    'x': stocks.index,
-    'y': stocks['entryTrigger'],
-    'type': 'bar',
-    'marker':{'color':'rgba(0, 0, 0, 0.3)'},
-    'name': 'Entry Trigger'
-}
-
-exitData={
-    'x': stocks.index,
-    'y': stocks['exitTrigger'],
-    'type': 'bar',
-    'marker':{'color':'rgba(255, 0, 0, 0.3)'},
-    'name': 'Exit Trigger'
-}
-
 equityData = {
     'x': stocks.index,
     'y': stocks['equity'],
@@ -226,10 +253,8 @@ fig.add_trace(maMedium, secondary_y=True)
 fig.add_trace(maLong, secondary_y=True)
 
 # Second subplot
-fig.add_trace(maDiffShortMediumChange, secondary_y=False)
-fig.add_trace(maDiffMediumLongChange, secondary_y=False)
-fig.add_trace(entryData, secondary_y=False)
-fig.add_trace(exitData, secondary_y=False)
+fig.add_trace(maDiff2, secondary_y=False)
+fig.add_trace(maDiff1, secondary_y=False)
 fig.add_trace(equityData, secondary_y=False)
 
 def formatDate(dt):
@@ -245,7 +270,8 @@ fig.update_layout({
         'font':{
             'size': 25
         }
-    }
+    },
+    'annotations': annotations
 })
 fig.update_xaxes(showspikes=True)
 fig.update_yaxes(title_text=stockSymbol, secondary_y=True)
