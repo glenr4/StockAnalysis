@@ -12,3 +12,15 @@ stocks['exitTrigger'] = (stocks['Close'] < stocks['maShort'])
 #
 # stocks['exitTrigger'] = (stocks['maDiffShortMediumChange'] < 0) \
 #                         & (stocks['Close'] < stocks['maShort'])
+
+// Not as good as buy and hold
+stocks['entryTrigger1'] = (stocks['maShort'] > stocks['maMedium'])
+stocks['entryTrigger2'] = (stocks['maShort'] <= stocks['maMedium'])
+stocks['entryTrigger2'] = stocks['entryTrigger2'].shift(1)
+
+stocks['entryTrigger'] = stocks['entryTrigger1'] & stocks['entryTrigger2']
+entryTriggerText = "Crossover(stocks['maShort'] > stocks['maMedium'])"
+
+stocks['exitTrigger'] = (stocks['Close'] < stocks['maShort'])
+exitTriggerText = "(stocks['Close'] < stocks['maShort'])"
+
